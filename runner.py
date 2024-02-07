@@ -109,7 +109,7 @@ class Runner(object):
             # record num of words of each sentence
             num_word += len(x)
 
-        mean_loss = total_loss/num_word
+        mean_loss = total_loss / num_word
 
         return mean_loss
 
@@ -421,6 +421,7 @@ if __name__ == "__main__":
 
         # calculate loss vocabulary words due to vocab_size
         fraction_lost = fraq_loss(vocab, word_to_num, vocab_size)
+
         print(
             "Retained %d words from %d (%.02f%% of all tokens)\n" % (
                 vocab_size, len(vocab), 100 * (1 - fraction_lost)))
@@ -446,9 +447,12 @@ if __name__ == "__main__":
         ##########################
         # --- your code here --- #
         ##########################
+        rnn = RNN(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=vocab_size)
+        r = Runner(rnn)
 
-        run_loss = -1
-        adjusted_loss = -1
+        run_loss = r.train(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+
+        adjusted_loss = adjust_loss(run_loss, fraction_lost, q)
 
         print("Unadjusted: %.03f" % np.exp(run_loss))
         print("Adjusted for missing vocab: %.03f" % np.exp(adjusted_loss))
