@@ -443,7 +443,6 @@ if __name__ == "__main__":
         # q = best unigram frequency from omitted vocab
         # this is the best expected loss out of that set
         q = vocab.freq[vocab_size] / sum(vocab.freq[vocab_size:])
-
         ##########################
         # --- your code here --- #
         ##########################

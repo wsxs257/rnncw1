@@ -73,7 +73,7 @@ class RNN(Model):
 			'''
 			input = np.dot(self.V, make_onehot(x[t], self.vocab_size))
 			recurrent_input = np.dot(self.U, s[t-1])
-			net_in = np.add(input,recurrent_input)
+			net_in = np.add(input, recurrent_input)
 			s[t] = sigmoid(net_in)
 			net_out = np.dot(self.W, s[t])
 			y[t] = softmax(net_out)
@@ -96,28 +96,18 @@ class RNN(Model):
 		no return values
 		'''
 
-		del_W = 0
-		del_V = 0
-		del_U = 0
 		for t in reversed(range(len(x))):
 			# δ out
 			error_out = (make_onehot(d[t], self.vocab_size) - y[t])
 			# W
-			del_W += np.outer(error_out,s[t])
+			self.deltaW += np.outer(error_out,s[t])
 			# δ in
 			derivative_sigmod = (s[t] * (np.ones(s[t].shape) - s[t]))
 			error_in = np.dot(self.W.T, error_out) * derivative_sigmod
 			# V
-			del_V += np.outer(error_in, make_onehot(x[t], self.vocab_size))
+			self.deltaV += np.outer(error_in, make_onehot(x[t], self.vocab_size))
 			# U
-			del_U += np.outer(error_in, s[t - 1])
-
-		self.deltaW = del_W
-		self.deltaV = del_V
-		self.deltaU = del_U
-
-
-
+			self.deltaU += np.outer(error_in, s[t - 1])
 
 	def acc_deltas_np(self, x, d, y, s):
 		'''
@@ -159,22 +149,18 @@ class RNN(Model):
 		no return values
 		'''
 
-		del_W = 0
-		del_V = 0
-		del_U = 0
-
 		for t in reversed(range(len(x))):
 			# δ out
 			error_out = (make_onehot(d[t], self.vocab_size) - y[t])
 			# W
-			del_W += np.outer(error_out, s[t])
+			self.deltaW += np.outer(error_out, s[t])
 			# δ in
 			derivative_sigmod = (s[t] * (np.ones(s[t].shape) - s[t]))
 			error_in = np.dot(self.W.T, error_out) * derivative_sigmod
 			# V
-			del_V += np.outer(error_in, make_onehot(x[t], self.vocab_size))
+			self.deltaV += np.outer(error_in, make_onehot(x[t], self.vocab_size))
 			# U
-			del_U += np.outer(error_in, s[t - 1])
+			self.deltaU += np.outer(error_in, s[t-1])
 
 			last_error_in = error_in
 			# go back tau times to calculate the accumulated V and U
@@ -184,15 +170,11 @@ class RNN(Model):
 				derivative_sigmod_bptt = (s[bptt_step] * (np.ones(s[bptt_step].shape) - s[bptt_step]))
 				error_in_bptt = np.dot(self.U.T, last_error_in) * derivative_sigmod_bptt
 				# U (t-tau)
-				del_U += np.outer(error_in_bptt, s[bptt_step - 1])
+				self.deltaU += np.outer(error_in_bptt, s[bptt_step - 1])
 				# V (t-tau)
-				del_V += np.outer(error_in_bptt, make_onehot(x[bptt_step], self.vocab_size))
+				self.deltaV += np.outer(error_in_bptt, make_onehot(x[bptt_step], self.vocab_size))
 
 				last_error_in = error_in_bptt
-
-		self.deltaW = del_W
-		self.deltaV = del_V
-		self.deltaU = del_U
 
 
 	def acc_deltas_bptt_np(self, x, d, y, s, steps):
