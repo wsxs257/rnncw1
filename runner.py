@@ -46,7 +46,7 @@ class Runner(object):
         # sum them
         y_pred, s = self.model.predict(x)
         for i, word in enumerate(d):
-            word_1h = make_onehot(word, self.model.vocab_size)
+            word_1h = make_onehot(word, self.model.out_vocab_size)
             ce_loss = -np.sum(word_1h * np.log(y_pred[i]))
             loss += ce_loss
         return loss
@@ -64,11 +64,11 @@ class Runner(object):
         '''
 
         loss = 0.
-
-        ##########################
-        # --- your code here --- #
-        ##########################
-
+        y_pred, s = self.model.predict(x)
+        y = y_pred[-1]
+        d_1h = make_onehot(int(d), self.model.out_vocab_size)
+        ce_loss = -np.sum(d_1h * np.log(y))
+        loss += ce_loss
         return loss
 
     def compute_acc_np(self, x, d):
@@ -82,11 +82,13 @@ class Runner(object):
         return 1 if argmax(y[t]) == d[0], 0 otherwise
         '''
 
-        ##########################
-        # --- your code here --- #
-        ##########################
-
-        return 0
+        y_pred, hiddens = self.model.predict(x)
+        pred = y_pred[-1]
+        pred_max = np.argmax(pred, axis=0)
+        if d[0] == pred_max:
+            return 1
+        else:
+            return 0
 
     def compute_mean_loss(self, X, D):
         '''
@@ -443,9 +445,6 @@ if __name__ == "__main__":
         # q = best unigram frequency from omitted vocab
         # this is the best expected loss out of that set
         q = vocab.freq[vocab_size] / sum(vocab.freq[vocab_size:])
-        ##########################
-        # --- your code here --- #
-        ##########################
         rnn = RNN(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=vocab_size)
         r = Runner(rnn)
 
@@ -461,7 +460,7 @@ if __name__ == "__main__":
         starter code for parameter estimation.
         change this to different values, or use it to get you started with your own testing class
         '''
-        train_size = 1000
+        train_size = 10000
         dev_size = 1000
         vocab_size = 2000
 
@@ -497,13 +496,11 @@ if __name__ == "__main__":
         X_dev = X_dev[:dev_size]
         D_dev = D_dev[:dev_size]
 
-        ##########################
-        # --- your code here --- #
-        ##########################
 
-        acc = 0.
+        rnn = RNN(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=2)
+        r = Runner(rnn)
 
-        print("Accuracy: %.03f" % acc)
+        r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
 
     if mode == "train-np-gru":
         '''
@@ -546,10 +543,7 @@ if __name__ == "__main__":
         X_dev = X_dev[:dev_size]
         D_dev = D_dev[:dev_size]
 
-        ##########################
-        # --- your code here --- #
-        ##########################
+        gru = GRU(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=2)
+        r = Runner(gru)
 
-        acc = 0.
-
-        print("Accuracy: %.03f" % acc)
+        r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)

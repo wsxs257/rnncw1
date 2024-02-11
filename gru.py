@@ -77,9 +77,9 @@ class GRU(GRUAbstract):
         no return values
         '''
 
-        ##########################
-        # --- your code here --- #
-        ##########################
+        t = len(x) - 1
+        # δ out
+        delta_output = (make_onehot(int(d), self.out_vocab_size) - y[t])
         self.backward(x, t, s, delta_output)
 
     def acc_deltas_bptt_np(self, x, d, y, s, steps):
@@ -101,8 +101,7 @@ class GRU(GRUAbstract):
         no return values
         '''
 
-        ##########################
-        # --- your code here --- #
-        ##########################
-
+        t = len(x) - 1
+        # δ out
+        delta_output = (make_onehot(int(d), self.out_vocab_size) - y[t])
         self.backward(x, t, s, delta_output, steps)
