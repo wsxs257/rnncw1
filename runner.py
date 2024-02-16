@@ -569,7 +569,7 @@ if __name__ == "__main__":
         r = Runner(gru)
 
         r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
-
+        
     if mode == "train-np-rnn-g":
         '''
         starter code for parameter estimation.
