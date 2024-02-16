@@ -251,6 +251,13 @@ class Runner(object):
         self.model.set_best_params()
 
         return best_loss
+    
+    def predict(self, X_test, D_test):
+        loss_function = self.compute_loss
+        loss_sum = sum([len(d) for d in D_test])
+        loss_test = sum([loss_function(X_test[i], D_test[i]) for i in range(len(X_test))]) / loss_sum
+        print(f"Test set mean loss is {loss_test}")
+        return loss_test
 
     def train_np(self, X, D, X_dev, D_dev, epochs=10, learning_rate=0.5, anneal=5, back_steps=0, batch_size=100,
                  min_change=0.0001, log=True):
@@ -407,7 +414,7 @@ if __name__ == "__main__":
         code for training language model.
         change this to different values, or use it to get you started with your own testing class
         '''
-        train_size = 1000
+        train_size = 25000
         dev_size = 1000
         vocab_size = 2000
 
@@ -437,6 +444,11 @@ if __name__ == "__main__":
         S_dev = docs_to_indices(docs, word_to_num, 1, 1)
         X_dev, D_dev = seqs_to_lmXY(S_dev)
 
+        # Load the test set (for evaluate model performance)
+        docs = load_lm_dataset(data_folder + '/wiki-test.txt')
+        S_test = docs_to_indices(docs, word_to_num, 1, 1)
+        X_test, D_test = seqs_to_lmXY(S_test)
+
         X_train = X_train[:train_size]
         D_train = D_train[:train_size]
         X_dev = X_dev[:dev_size]
@@ -445,15 +457,25 @@ if __name__ == "__main__":
         # q = best unigram frequency from omitted vocab
         # this is the best expected loss out of that set
         q = vocab.freq[vocab_size] / sum(vocab.freq[vocab_size:])
+
+        # Train model
         rnn = RNN(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=vocab_size)
         r = Runner(rnn)
+        loss_dev = r.train(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+        adjusted_loss_dev = adjust_loss(loss_dev, fraction_lost, q)
+        print("Unadjusted on dev set: %.03f" % np.exp(loss_dev))
+        print("Adjusted for missing vocab on dev set: %.03f" % np.exp(adjusted_loss_dev))
 
-        run_loss = r.train(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+        # Test model
+        loss_test = r.predict(X_test, D_test)
+        adjusted_loss_test = adjust_loss(loss_test, fraction_lost, q)
+        print("Unadjusted on test set: %.03f" % np.exp(loss_test))
+        print("Adjusted for missing vocab on test set: %.03f" % np.exp(adjusted_loss_test))
 
-        adjusted_loss = adjust_loss(run_loss, fraction_lost, q)
-
-        print("Unadjusted: %.03f" % np.exp(run_loss))
-        print("Adjusted for missing vocab: %.03f" % np.exp(adjusted_loss))
+        # Save the trained model
+        np.save('rnn.U.npy', rnn.U)
+        np.save('rnn.V.npy', rnn.V)
+        np.save('rnn.W.npy', rnn.W)
 
     if mode == "train-np-rnn":
         '''
@@ -547,3 +569,125 @@ if __name__ == "__main__":
         r = Runner(gru)
 
         r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+
+    if mode == "train-np-rnn-g":
+        '''
+        starter code for parameter estimation.
+        change this to different values, or use it to get you started with your own testing class
+        '''
+        train_size = 10000
+        dev_size = 1000
+        vocab_size = 2000
+
+        hdim = int(sys.argv[3])
+        lookback = int(sys.argv[4])
+        lr = float(sys.argv[5])
+
+        # get the data set vocabulary
+        vocab = pd.read_table(data_folder + "/vocab.wiki.txt", header=None, sep="\s+", index_col=0,
+                              names=['count', 'freq'], )
+        num_to_word = dict(enumerate(vocab.index[:vocab_size]))
+        word_to_num = invert_dict(num_to_word)
+
+        # calculate loss vocabulary words due to vocab_size
+        fraction_lost = fraq_loss(vocab, word_to_num, vocab_size)
+        print(
+            "Retained %d words from %d (%.02f%% of all tokens)\n" % (
+                vocab_size, len(vocab), 100 * (1 - fraction_lost)))
+
+        # load training data
+        sents = load_np_dataset(data_folder + '/wiki-train.txt')
+        S_train = docs_to_indices(sents, word_to_num, 0, 0)
+        X_train, D_train = seqs_to_npXY(S_train)
+
+        X_train = X_train[:train_size]
+        Y_train = D_train[:train_size]
+
+        # load development data
+        sents = load_np_dataset(data_folder + '/wiki-dev.txt')
+        S_dev = docs_to_indices(sents, word_to_num, 0, 0)
+        X_dev, D_dev = seqs_to_npXY(S_dev)
+
+        X_dev = X_dev[:dev_size]
+        D_dev = D_dev[:dev_size]
+
+
+        rnn = RNN(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=2)
+        r = Runner(rnn)
+
+        r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+
+        def compute_gradient_norm(model):
+            total_norm = 0
+            for param_name in model._deltas:
+                print(param_name)
+            for param_name in model._deltas:
+                gradient = model._deltas[param_name]  # get gradient
+                param_norm = np.linalg.norm(gradient)  # cal L2 grad
+                total_norm += param_norm ** 2
+            total_norm = np.sqrt(total_norm)  # cal total grad
+            return total_norm
+
+        gradNorm = compute_gradient_norm(r.model)
+        print(gradNorm)
+        
+    if mode == "train-np-gru-g":
+        '''
+        starter code for parameter estimation.
+        change this to different values, or use it to get you started with your own testing class
+        '''
+        train_size = 10000
+        dev_size = 1000
+        vocab_size = 2000
+
+        hdim = int(sys.argv[3])
+        lookback = int(sys.argv[4])
+        lr = float(sys.argv[5])
+
+        # get the data set vocabulary
+        vocab = pd.read_table(data_folder + "/vocab.wiki.txt", header=None, sep="\s+", index_col=0,
+                              names=['count', 'freq'], )
+        num_to_word = dict(enumerate(vocab.index[:vocab_size]))
+        word_to_num = invert_dict(num_to_word)
+
+        # calculate loss vocabulary words due to vocab_size
+        fraction_lost = fraq_loss(vocab, word_to_num, vocab_size)
+        print(
+            "Retained %d words from %d (%.02f%% of all tokens)\n" % (
+                vocab_size, len(vocab), 100 * (1 - fraction_lost)))
+
+        # load training data
+        sents = load_np_dataset(data_folder + '/wiki-train.txt')
+        S_train = docs_to_indices(sents, word_to_num, 0, 0)
+        X_train, D_train = seqs_to_npXY(S_train)
+
+        X_train = X_train[:train_size]
+        Y_train = D_train[:train_size]
+
+        # load development data
+        sents = load_np_dataset(data_folder + '/wiki-dev.txt')
+        S_dev = docs_to_indices(sents, word_to_num, 0, 0)
+        X_dev, D_dev = seqs_to_npXY(S_dev)
+
+        X_dev = X_dev[:dev_size]
+        D_dev = D_dev[:dev_size]
+
+        gru = GRU(vocab_size=vocab_size, hidden_dims=hdim, out_vocab_size=2)
+        r = Runner(gru)
+
+        r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
+
+
+        def compute_gradient_norm(model):
+            total_norm = 0
+            for param_name in model._deltas:
+                print(param_name)
+            for param_name in model._deltas:
+                gradient = model._deltas[param_name]  # get gradient
+                param_norm = np.linalg.norm(gradient)  # cal L2 grad
+                total_norm += param_norm ** 2
+            total_norm = np.sqrt(total_norm)  # cal total grad
+            return total_norm
+
+        gradNorm = compute_gradient_norm(r.model)
+        print(gradNorm)
