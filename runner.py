@@ -251,13 +251,6 @@ class Runner(object):
         self.model.set_best_params()
 
         return best_loss
-    
-    def predict(self, X_test, D_test):
-        loss_function = self.compute_loss
-        loss_sum = sum([len(d) for d in D_test])
-        loss_test = sum([loss_function(X_test[i], D_test[i]) for i in range(len(X_test))]) / loss_sum
-        print(f"Test set mean loss is {loss_test}")
-        return loss_test
 
     def train_np(self, X, D, X_dev, D_dev, epochs=10, learning_rate=0.5, anneal=5, back_steps=0, batch_size=100,
                  min_change=0.0001, log=True):
@@ -467,8 +460,10 @@ if __name__ == "__main__":
         print("Adjusted for missing vocab on dev set: %.03f" % np.exp(adjusted_loss_dev))
 
         # Test model
-        loss_test = r.predict(X_test, D_test)
+        loss_sum = sum([len(d) for d in D_test])
+        loss_test = sum([r.compute_loss(X_test[i], D_test[i]) for i in range(len(X_test))]) / loss_sum
         adjusted_loss_test = adjust_loss(loss_test, fraction_lost, q)
+        print(f"Test set mean loss is {loss_test}")
         print("Unadjusted on test set: %.03f" % np.exp(loss_test))
         print("Adjusted for missing vocab on test set: %.03f" % np.exp(adjusted_loss_test))
 
@@ -569,7 +564,7 @@ if __name__ == "__main__":
         r = Runner(gru)
 
         r.train_np(X_train, D_train, X_dev, D_dev, learning_rate=lr, back_steps=lookback)
-        
+
     if mode == "train-np-rnn-g":
         '''
         starter code for parameter estimation.
@@ -630,7 +625,7 @@ if __name__ == "__main__":
 
         gradNorm = compute_gradient_norm(r.model)
         print(gradNorm)
-        
+
     if mode == "train-np-gru-g":
         '''
         starter code for parameter estimation.
