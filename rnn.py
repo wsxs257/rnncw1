@@ -129,7 +129,7 @@ class RNN(Model):
 		t = len(x) - 1
 
 		# δ out
-		error_out = (make_onehot(int(d), self.out_vocab_size) - y[t])
+		error_out = (make_onehot(d[0], self.out_vocab_size) - y[t])
 		# W
 		self.deltaW += np.outer(error_out, s[t])
 		# δ in
@@ -206,7 +206,7 @@ class RNN(Model):
 		'''
 
 		t = len(x) - 1
-		error_out = (make_onehot(int(d), self.out_vocab_size) - y[t])
+		error_out = (make_onehot(d[0], self.out_vocab_size) - y[t])
 		# W
 		self.deltaW += np.outer(error_out, s[t])
 		# δ in
